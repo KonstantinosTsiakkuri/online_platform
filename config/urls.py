@@ -19,9 +19,26 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import URLPattern, URLResolver, include, path
+from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+from rest_framework.permissions import AllowAny
 
 urlpatterns: list[URLPattern | URLResolver] = [
     path("admin/", admin.site.urls),
+    path(
+        "api/schema/",
+        SpectacularAPIView.as_view(permission_classes=[AllowAny], authentication_classes=[]),
+        name="schema",
+    ),
+    path(
+        "api/docs/",
+        SpectacularSwaggerView.as_view(url_name="schema", permission_classes=[AllowAny], authentication_classes=[]),
+        name="swagger-ui",
+    ),
+    path(
+        "api/redoc/",
+        SpectacularRedocView.as_view(url_name="schema", permission_classes=[AllowAny], authentication_classes=[]),
+        name="redoc",
+    ),
     path("", include("materials.urls", namespace="materials")),
     path("", include("users.urls", namespace="users")),
 ]

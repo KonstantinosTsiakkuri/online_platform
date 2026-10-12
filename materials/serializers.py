@@ -1,3 +1,5 @@
+from typing import Any
+
 from rest_framework import serializers
 
 from .models import Course, Lesson
@@ -39,3 +41,9 @@ class CourseSerializer(serializers.ModelSerializer[Course]):
         if user is None or not user.is_authenticated:
             return False
         return bool(obj.subscriptions.filter(user=user).exists())
+
+
+class SubscriptionRequestSerializer(serializers.Serializer[Any]):
+    """Тело запроса подписки (используется для документации)."""
+
+    course_id = serializers.IntegerField(min_value=1, help_text="ID курса")

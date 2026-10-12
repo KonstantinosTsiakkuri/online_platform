@@ -30,6 +30,15 @@ class UserAdmin(DjangoUserAdmin):
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "payment_date", "paid_course", "paid_lesson", "amount", "payment_method")
-    list_filter = ("payment_method", "paid_course", "paid_lesson")
+    list_display = (
+        "id",
+        "user",
+        "payment_date",
+        "paid_course",
+        "paid_lesson",
+        "amount",
+        "payment_method",
+        "payment_status",
+    )
+    list_filter = ("payment_method", "payment_status", "paid_course", "paid_lesson")
     ordering = ("-payment_date",)

@@ -59,6 +59,13 @@ class Payment(models.Model):
     class PaymentMethod(models.TextChoices):
         CASH = "cash", "Наличные"
         TRANSFER = "transfer", "Перевод на счёт"
+        STRIPE = "stripe", "Онлайн-оплата (Stripe)"
+
+    class PaymentStatus(models.TextChoices):
+        UNPAID = "unpaid", "Не оплачен"
+        PAID = "paid", "Оплачен"
+        NO_PAYMENT_REQUIRED = "no_payment_required", "Оплата не требуется"
+        EXPIRED = "expired", "Сессия истекла"
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -88,6 +95,16 @@ class Payment(models.Model):
         max_length=20,
         choices=PaymentMethod.choices,
         verbose_name="Способ оплаты",
+    )
+    stripe_product_id = models.CharField(max_length=255, blank=True, default="", verbose_name="Stripe: ID продукта")
+    stripe_price_id = models.CharField(max_length=255, blank=True, default="", verbose_name="Stripe: ID цены")
+    stripe_session_id = models.CharField(max_length=255, blank=True, default="", verbose_name="Stripe: ID сессии")
+    payment_link = models.URLField(max_length=1000, blank=True, null=True, verbose_name="Ссылка на оплату")
+    payment_status = models.CharField(
+        max_length=30,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.UNPAID,
+        verbose_name="Статус оплаты",
     )
 
     class Meta:

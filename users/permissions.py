@@ -49,3 +49,11 @@ class IsSelf(BasePermission):
     def has_object_permission(self, request: Request, view: APIView, obj: Any) -> bool:
         user = request.user
         return bool(obj == user or user.is_staff or user.is_superuser)
+
+
+class IsPaymentOwnerOrStaff(BasePermission):
+    """Платёж доступен его владельцу, модератору, staff и суперпользователю."""
+
+    def has_object_permission(self, request: Request, view: APIView, obj: Any) -> bool:
+        user = request.user
+        return bool(obj.user == user or is_moderator(user) or user.is_staff or user.is_superuser)

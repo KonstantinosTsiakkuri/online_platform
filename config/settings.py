@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "django_filters",
+    "drf_spectacular",
     "users",
     "materials",
 ]
@@ -138,7 +139,40 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "LMS API",
+    "DESCRIPTION": (
+        "API учебной платформы: курсы, уроки, подписки, пользователи и оплата курсов через Stripe.\n\n"
+        "**Авторизация.** Получите пару токенов в `POST /users/token/`, нажмите **Authorize** и вставьте "
+        "`access`-токен (слово `Bearer` добавится автоматически).\n\n"
+        "**Роли.** Владелец управляет своими курсами и уроками; модератор (группа `moderators`) видит и "
+        "редактирует всё, но не создаёт и не удаляет; обычный пользователь видит только свои объекты."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SWAGGER_UI_SETTINGS": {"persistAuthorization": True},
+    "TAGS": [
+        {"name": "Аутентификация", "description": "Получение и обновление JWT-токенов."},
+        {"name": "Пользователи", "description": "Регистрация и профили пользователей."},
+        {"name": "Курсы", "description": "CRUD курсов с вложенными уроками."},
+        {"name": "Уроки", "description": "CRUD уроков."},
+        {"name": "Подписки", "description": "Подписка на курс."},
+        {"name": "Платежи", "description": "Список платежей и оплата курсов через Stripe."},
+    ],
+}
+
+# Stripe (ключи задаются только через переменные окружения / .env)
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+STRIPE_CURRENCY = os.getenv("STRIPE_CURRENCY", "rub")
+STRIPE_SUCCESS_URL = os.getenv(
+    "STRIPE_SUCCESS_URL",
+    "http://127.0.0.1:8000/api/docs/?payment=success&session_id={CHECKOUT_SESSION_ID}",
+)
+STRIPE_CANCEL_URL = os.getenv("STRIPE_CANCEL_URL", "http://127.0.0.1:8000/api/docs/?payment=cancel")
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
