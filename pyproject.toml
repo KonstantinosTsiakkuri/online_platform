@@ -7,9 +7,52 @@ authors = [
 ]
 requires-python = "^3.13"
 dependencies = [
+    "django (>=6.1.2,<7.0.0)",
+    "djangorestframework (>=3.18.3,<4.0.0)",
+    "pillow (>=12.3.0,<13.0.0)",
+    "python-dotenv (>=1.2.4,<2.0.0)",
+    "django-filter (>=26.2,<27.0)",
+    "djangorestframework-simplejwt (>=5.5.1,<6.0.0)",
+    "drf-spectacular (>=0.30.0,<0.31.0)",
+    "stripe (>=16.0.0,<17.0.0)"
 ]
 
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "flake8 (>=7.4.1,<8.0.0)",
+    "black (>=26.10.1,<27.0.0)",
+    "isort (>=9.0.2,<10.0.0)",
+    "mypy (>=2.4.0,<3.0.0)",
+    "django-stubs (>=6.1.2,<7.0.0)",
+    "djangorestframework-stubs (>=3.18.1,<4.0.0)",
+    "numpy (>=2.5.4,<3.0.0)",
+    "types-django-filter (>=26.2.0.20261005,<27.0.0.0)",
+    "coverage (>=7.16.2,<8.0.0)"
+]
+
+[tool.black]
+line-length = 119
+target-version = ["py313"]
+extend-exclude = "migrations"
+
+[tool.isort]
+profile = "black"
+line_length = 119
+skip_glob = ["*/migrations/*"]
+known_first_party = ["config", "users", "materials"]
+
+[tool.mypy]
+python_version = "3.13"
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+disallow_untyped_defs = true
+check_untyped_defs = true
+warn_unused_ignores = true
+exclude = ["migrations/", "Claude_code/"]
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
