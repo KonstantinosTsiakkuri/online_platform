@@ -1,0 +1,62 @@
+[
+  {
+    "model": "users.user",
+    "pk": 1,
+    "fields": {
+      "password": "pbkdf2_sha256$1500000$ddd8Ni1fLLrueZw8YyB1N6$i5a1POR9AqdU+9fvCeaGnJ7a06BVdPaXei0QHh7FvBc=",
+      "last_login": null,
+      "is_superuser": false,
+      "email": "ivan@example.com",
+      "first_name": "Иван",
+      "last_name": "Петров",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-01-10T10:00:00Z",
+      "phone": "+7 900 111-11-11",
+      "city": "Москва",
+      "avatar": null,
+      "groups": [],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": 2,
+    "fields": {
+      "password": "pbkdf2_sha256$1500000$ddd8Ni1fLLrueZw8YyB1N6$i5a1POR9AqdU+9fvCeaGnJ7a06BVdPaXei0QHh7FvBc=",
+      "last_login": null,
+      "is_superuser": false,
+      "email": "anna@example.com",
+      "first_name": "Анна",
+      "last_name": "Смирнова",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-01-10T10:00:00Z",
+      "phone": "+7 900 222-22-22",
+      "city": "Казань",
+      "avatar": null,
+      "groups": [],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": 3,
+    "fields": {
+      "password": "pbkdf2_sha256$1500000$ddd8Ni1fLLrueZw8YyB1N6$i5a1POR9AqdU+9fvCeaGnJ7a06BVdPaXei0QHh7FvBc=",
+      "last_login": null,
+      "is_superuser": false,
+      "email": "oleg@example.com",
+      "first_name": "Олег",
+      "last_name": "Кузнецов",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-01-10T10:00:00Z",
+      "phone": "+7 900 333-33-33",
+      "city": "Самара",
+      "avatar": null,
+      "groups": [],
+      "user_permissions": []
+    }
+  }
+]

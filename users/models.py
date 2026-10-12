@@ -1,5 +1,6 @@
 from typing import Any, ClassVar
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 
@@ -52,3 +53,48 @@ class User(AbstractUser):
 
     def __str__(self) -> str:
         return self.email
+
+
+class Payment(models.Model):
+    class PaymentMethod(models.TextChoices):
+        CASH = "cash", "Наличные"
+        TRANSFER = "transfer", "Перевод на счёт"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="payments",
+        verbose_name="Пользователь",
+    )
+    payment_date = models.DateField(verbose_name="Дата оплаты")
+    paid_course = models.ForeignKey(
+        "materials.Course",
+        on_delete=models.SET_NULL,
+        related_name="payments",
+        blank=True,
+        null=True,
+        verbose_name="Оплаченный курс",
+    )
+    paid_lesson = models.ForeignKey(
+        "materials.Lesson",
+        on_delete=models.SET_NULL,
+        related_name="payments",
+        blank=True,
+        null=True,
+        verbose_name="Оплаченный урок",
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Сумма оплаты")
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PaymentMethod.choices,
+        verbose_name="Способ оплаты",
+    )
+
+    class Meta:
+        verbose_name = "Платёж"
+        verbose_name_plural = "Платежи"
+        ordering = ["-payment_date", "-id"]
+
+    def __str__(self) -> str:
+        target = self.paid_course or self.paid_lesson or "—"
+        return f"{self.user} — {target}: {self.amount} ({self.payment_date})"

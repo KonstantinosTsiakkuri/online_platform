@@ -7,7 +7,7 @@ from .serializers import CourseSerializer, LessonSerializer
 class CourseViewSet(viewsets.ModelViewSet[Course]):
     """CRUD для курсов: list, retrieve, create, update, partial_update, destroy."""
 
-    queryset = Course.objects.all()
+    queryset = Course.objects.prefetch_related("lessons")
     serializer_class = CourseSerializer
 
 

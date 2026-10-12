@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
-from .models import User
+from .models import Payment, User
 
 
 @admin.register(User)
@@ -24,3 +24,10 @@ class UserAdmin(DjangoUserAdmin):
             },
         ),
     )
+
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "payment_date", "paid_course", "paid_lesson", "amount", "payment_method")
+    list_filter = ("payment_method", "paid_course", "paid_lesson")
+    ordering = ("-payment_date",)
