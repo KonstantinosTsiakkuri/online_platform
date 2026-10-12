@@ -29,7 +29,8 @@ dev = [
     "django-stubs (>=6.1.2,<7.0.0)",
     "djangorestframework-stubs (>=3.18.1,<4.0.0)",
     "numpy (>=2.5.4,<3.0.0)",
-    "types-django-filter (>=26.2.0.20261005,<27.0.0.0)"
+    "types-django-filter (>=26.2.0.20261005,<27.0.0.0)",
+    "coverage (>=7.16.2,<8.0.0)"
 ]
 
 [tool.black]
