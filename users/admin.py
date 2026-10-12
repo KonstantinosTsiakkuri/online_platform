@@ -8,7 +8,9 @@ from .models import Payment, User
 class UserAdmin(DjangoUserAdmin):
     ordering = ("email",)
     list_display = ("email", "first_name", "last_name", "phone", "city", "is_staff")
+    list_filter = ("is_staff", "is_superuser", "is_active", "groups")
     search_fields = ("email", "first_name", "last_name", "phone")
+    filter_horizontal = ("groups", "user_permissions")
     fieldsets = (
         (None, {"fields": ("email", "password")}),
         ("Личные данные", {"fields": ("first_name", "last_name", "phone", "city", "avatar")}),
