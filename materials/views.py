@@ -1,7 +1,10 @@
+from datetime import timedelta
 from typing import Any
 
+from django.db import transaction
 from django.db.models import QuerySet
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import (
     OpenApiExample,
@@ -23,6 +26,7 @@ from users.permissions import IsModer, IsOwner, IsSuperuser, is_moderator
 from .models import Course, Lesson, Subscription
 from .paginators import MaterialsPagination
 from .serializers import CourseSerializer, LessonSerializer, SubscriptionRequestSerializer
+from .tasks import send_course_update_email
 
 # Наборы прав (операторы DRF: & — И, | — ИЛИ, ~ — НЕ).
 CAN_CREATE = IsAuthenticated & ~IsModer
@@ -32,6 +36,9 @@ CAN_DELETE = IsAuthenticated & ((~IsModer & IsOwner) | IsSuperuser)
 COURSES_TAG = "Курсы"
 LESSONS_TAG = "Уроки"
 SUBSCRIPTIONS_TAG = "Подписки"
+
+# Письмо подписчикам не отправляется, если курс уже обновлялся менее 4 часов назад
+NOTIFY_INTERVAL = timedelta(hours=4)
 
 LINK_RULE = (
     "Во всех текстовых полях допускаются только ссылки на youtube.com (и его поддомены); "
@@ -117,6 +124,16 @@ class CourseViewSet(viewsets.ModelViewSet[Course]):
 
     def perform_create(self, serializer: BaseSerializer[Course]) -> None:
         serializer.save(owner=self.request.user)
+
+    def perform_update(self, serializer: BaseSerializer[Course]) -> None:
+        # Время предыдущего обновления запоминаем ДО сохранения: save() перезапишет updated_at (auto_now)
+        previous_update = serializer.instance.updated_at if serializer.instance else None
+        course = serializer.save()
+        if previous_update is not None and timezone.now() - previous_update < NOTIFY_INTERVAL:
+            return  # курс обновлялся менее 4 часов назад — подписчиков не беспокоим
+        # Задача ставится в очередь только после фиксации транзакции. robust=True: если брокер недоступен,
+        # ошибка пишется в лог, а клиент получает успешный ответ (курс уже сохранён).
+        transaction.on_commit(lambda: send_course_update_email.delay(course.pk), robust=True)
 
     def get_permissions(self) -> list[Any]:
         permission: Any

@@ -15,6 +15,7 @@ class Course(models.Model):
         validators=[MinValueValidator(0)],
         verbose_name="Цена",
     )
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

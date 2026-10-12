@@ -7,14 +7,17 @@ authors = [
 ]
 requires-python = "^3.13"
 dependencies = [
-    "django (>=6.1.2,<7.0.0)",
+    "django (>=6.0,<6.1)",
     "djangorestframework (>=3.18.3,<4.0.0)",
     "pillow (>=12.3.0,<13.0.0)",
     "python-dotenv (>=1.2.4,<2.0.0)",
     "django-filter (>=26.2,<27.0)",
     "djangorestframework-simplejwt (>=5.5.1,<6.0.0)",
     "drf-spectacular (>=0.30.0,<0.31.0)",
-    "stripe (>=16.0.0,<17.0.0)"
+    "stripe (>=16.0.0,<17.0.0)",
+    "celery (>=5.6.3,<6.0.0)",
+    "redis (>=4.5.2,<6.5)",
+    "django-celery-beat (>=2.9.0,<3.0.0)"
 ]
 
 
@@ -56,3 +59,8 @@ exclude = ["migrations/", "Claude_code/"]
 
 [tool.django-stubs]
 django_settings_module = "config.settings"
+
+[[tool.mypy.overrides]]
+# у celery, kombu и django-celery-beat нет встроенных аннотаций типов
+module = ["celery.*", "kombu.*", "django_celery_beat.*"]
+ignore_missing_imports = true
