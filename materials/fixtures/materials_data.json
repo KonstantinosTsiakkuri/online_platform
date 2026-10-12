@@ -1,0 +1,84 @@
+[
+  {
+    "model": "materials.course",
+    "pk": 1,
+    "fields": {
+      "title": "Python для начинающих",
+      "preview": null,
+      "description": "Базовый курс по Python"
+    }
+  },
+  {
+    "model": "materials.course",
+    "pk": 2,
+    "fields": {
+      "title": "Django REST Framework",
+      "preview": null,
+      "description": "Создание API на DRF"
+    }
+  },
+  {
+    "model": "materials.course",
+    "pk": 3,
+    "fields": {
+      "title": "Основы SQL",
+      "preview": null,
+      "description": "Курс без уроков (для проверки lessons_count = 0)"
+    }
+  },
+  {
+    "model": "materials.lesson",
+    "pk": 1,
+    "fields": {
+      "title": "Введение в Python",
+      "description": "Переменные и типы",
+      "preview": null,
+      "video_url": "https://www.youtube.com/watch?v=lesson1",
+      "course": 1
+    }
+  },
+  {
+    "model": "materials.lesson",
+    "pk": 2,
+    "fields": {
+      "title": "Условия и циклы",
+      "description": "if, for, while",
+      "preview": null,
+      "video_url": "https://www.youtube.com/watch?v=lesson2",
+      "course": 1
+    }
+  },
+  {
+    "model": "materials.lesson",
+    "pk": 3,
+    "fields": {
+      "title": "Функции",
+      "description": "def, аргументы, return",
+      "preview": null,
+      "video_url": "https://www.youtube.com/watch?v=lesson3",
+      "course": 1
+    }
+  },
+  {
+    "model": "materials.lesson",
+    "pk": 4,
+    "fields": {
+      "title": "Введение в DRF",
+      "description": "Сериализаторы",
+      "preview": null,
+      "video_url": "https://www.youtube.com/watch?v=lesson4",
+      "course": 2
+    }
+  },
+  {
+    "model": "materials.lesson",
+    "pk": 5,
+    "fields": {
+      "title": "ViewSet и роутеры",
+      "description": "ModelViewSet и DefaultRouter",
+      "preview": null,
+      "video_url": "https://www.youtube.com/watch?v=lesson5",
+      "course": 2
+    }
+  }
+]
