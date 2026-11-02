@@ -1,0 +1,99 @@
+# Запуск всего проекта одной командой: docker compose up -d --build
+#
+# Все секреты и настройки берутся из файла .env (env_file). В самом compose-файле секретов нет.
+# Здесь переопределены только адреса: внутри сети Docker сервисы находят друг друга по имени
+# (db, redis), а в .env для запуска без Docker остаются localhost.
+
+x-app-common: &app-common
+  build: .
+  image: online-platform:latest
+  env_file: .env
+  environment:
+    POSTGRES_HOST: db
+    REDIS_HOST: redis
+    # Если в .env задан полный адрес Redis, он перебил бы REDIS_HOST, поэтому задаём его явно
+    CELERY_BROKER_URL: redis://redis:6379/${REDIS_DB:-0}
+    CELERY_RESULT_BACKEND: redis://redis:6379/${REDIS_DB:-0}
+  restart: unless-stopped
+
+services:
+  db:
+    image: postgres:17-alpine
+    env_file: .env
+    expose:
+      - "5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    <<: *app-common
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+    volumes:
+      - media_data:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # app считается здоровым, когда миграции применены и сервер отвечает
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/schema/', timeout=5)"
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 40s
+
+  celery:
+    <<: *app-common
+    command: celery -A config worker -l INFO
+    volumes:
+      - media_data:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+
+  celery_beat:
+    <<: *app-common
+    command: celery -A config beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+
+volumes:
+  pg_data:
+  redis_data:
+  media_data:

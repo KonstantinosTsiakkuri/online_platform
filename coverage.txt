@@ -1,0 +1,29 @@
+Name                       Stmts   Miss  Cover   Missing
+--------------------------------------------------------
+config\__init__.py             2      0   100%
+config\celery.py               6      0   100%
+config\openapi.py             16      0   100%
+config\settings.py            51      0   100%
+config\urls.py                 9      1    89%   47
+materials\admin.py            16      0   100%
+materials\apps.py              3      0   100%
+materials\models.py           37      1    97%   61
+materials\paginators.py        5      0   100%
+materials\serializers.py      29      0   100%
+materials\tasks.py            22      0   100%
+materials\urls.py              8      0   100%
+materials\validators.py       39      4    90%   58-60, 63
+materials\views.py           115      1    99%   55
+users\admin.py                17      0   100%
+users\apps.py                  3      0   100%
+users\models.py               68      5    93%   15, 32, 34, 116-117
+users\permissions.py          30      3    90%   43, 50-51
+users\serializers.py          52     13    75%   65-67, 70-75, 78-81
+users\services.py             44      0   100%
+users\tasks.py                13      0   100%
+users\urls.py                  8      0   100%
+users\views.py                93      1    99%   257
+--------------------------------------------------------
+TOTAL                        686     29    96%
+
+2 empty files skipped.
