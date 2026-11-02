@@ -1,0 +1,273 @@
+name: CI/CD
+
+# Цепочка: test -> lint -> build -> deploy. Падение любой джобы останавливает следующие.
+# build собирает образ при каждом push и pull_request, но публикует его в ghcr.io только при push.
+# deploy выполняется только при push (не при pull_request).
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+env:
+  PYTHON_VERSION: "3.13" # как в pyproject.toml (^3.13)
+  POETRY_VERSION: "2.4.3" # версия, которой создан poetry.lock
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: online_platform
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d online_platform"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    # Переменные окружения для тестов (читаются в config/settings.py). Тестам не нужны ни Redis,
+    # ни SMTP: задачи Celery в тестах вызываются напрямую или мокаются, письма идут в locmem.
+    env:
+      SECRET_KEY: ci-test-key-not-a-secret
+      DEBUG: "False"
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      POSTGRES_DB: online_platform
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        run: pip install "poetry==${POETRY_VERSION}"
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-${{ hashFiles('poetry.lock') }}
+
+      - name: Install dependencies
+        run: |
+          poetry config virtualenvs.in-project true
+          poetry install --no-root --no-interaction
+
+      - name: Run tests
+        run: poetry run python manage.py test --noinput
+
+  lint:
+    name: Lint (flake8)
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        run: pip install "poetry==${POETRY_VERSION}"
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-${{ hashFiles('poetry.lock') }}
+
+      - name: Install dependencies
+        run: |
+          poetry config virtualenvs.in-project true
+          poetry install --no-root --no-interaction
+
+      - name: flake8 (конфиг .flake8)
+        run: poetry run flake8 .
+
+  build:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    needs: lint
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Image name (lowercase)
+        # ghcr.io требует имя в нижнем регистре, а в github.repository может быть заглавная
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ghcr.io
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name == 'push' }}
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to server
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push'
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      APP_DIR: online_platform
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required secrets
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          ALLOWED_HOSTS: ${{ secrets.ALLOWED_HOSTS }}
+          CSRF_TRUSTED_ORIGINS: ${{ secrets.CSRF_TRUSTED_ORIGINS }}
+        run: |
+          missing=0
+          for name in SSH_KEY SERVER_HOST SERVER_USER GHCR_TOKEN SECRET_KEY POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD ALLOWED_HOSTS CSRF_TRUSTED_ORIGINS; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Не задан секрет репозитория $name (Settings -> Secrets and variables -> Actions)"
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: Prepare SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$SERVER_HOST" >> ~/.ssh/known_hosts
+
+      - name: Create .env from secrets
+        env:
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          ALLOWED_HOSTS: ${{ secrets.ALLOWED_HOSTS }}
+          CSRF_TRUSTED_ORIGINS: ${{ secrets.CSRF_TRUSTED_ORIGINS }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
+          EMAIL_PORT: ${{ secrets.EMAIL_PORT }}
+          EMAIL_HOST_USER: ${{ secrets.EMAIL_HOST_USER }}
+          EMAIL_HOST_PASSWORD: ${{ secrets.EMAIL_HOST_PASSWORD }}
+          EMAIL_USE_SSL: ${{ secrets.EMAIL_USE_SSL }}
+          EMAIL_USE_TLS: ${{ secrets.EMAIL_USE_TLS }}
+          DEFAULT_FROM_EMAIL: ${{ secrets.DEFAULT_FROM_EMAIL }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_SUCCESS_URL: ${{ secrets.STRIPE_SUCCESS_URL }}
+          STRIPE_CANCEL_URL: ${{ secrets.STRIPE_CANCEL_URL }}
+        run: |
+          umask 077
+          : > env.prod
+          # Значения пишутся в одинарных кавычках: так compose не раскрывает $ и не считает # комментарием.
+          add() {
+            if [ -z "$2" ]; then return 0; fi # необязательные пустые секреты в файл не попадают
+            case "$2" in
+              *"'"*) echo "::error::Значение $1 содержит символ ' — он не поддерживается в .env"; exit 1 ;;
+            esac
+            printf "%s='%s'\n" "$1" "$2" >> env.prod
+          }
+          add DEBUG False
+          add SECRET_KEY "$SECRET_KEY"
+          add ALLOWED_HOSTS "$ALLOWED_HOSTS"
+          add CSRF_TRUSTED_ORIGINS "$CSRF_TRUSTED_ORIGINS"
+          add POSTGRES_DB "$POSTGRES_DB"
+          add POSTGRES_USER "$POSTGRES_USER"
+          add POSTGRES_PASSWORD "$POSTGRES_PASSWORD"
+          add POSTGRES_HOST db
+          add POSTGRES_PORT 5432
+          add REDIS_HOST redis
+          add REDIS_PORT 6379
+          add REDIS_DB 0
+          add EMAIL_HOST "$EMAIL_HOST"
+          add EMAIL_PORT "$EMAIL_PORT"
+          add EMAIL_HOST_USER "$EMAIL_HOST_USER"
+          add EMAIL_HOST_PASSWORD "$EMAIL_HOST_PASSWORD"
+          add EMAIL_USE_SSL "$EMAIL_USE_SSL"
+          add EMAIL_USE_TLS "$EMAIL_USE_TLS"
+          add DEFAULT_FROM_EMAIL "$DEFAULT_FROM_EMAIL"
+          add STRIPE_SECRET_KEY "$STRIPE_SECRET_KEY"
+          add STRIPE_SUCCESS_URL "$STRIPE_SUCCESS_URL"
+          add STRIPE_CANCEL_URL "$STRIPE_CANCEL_URL"
+          echo "Создан env.prod: $(wc -l < env.prod) переменных (значения не выводятся)"
+
+      - name: Copy docker-compose.yaml, nginx/ and .env to the server
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          SSH_OPTS="-i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes"
+          ssh $SSH_OPTS "$SERVER_USER@$SERVER_HOST" "mkdir -p ~/$APP_DIR/nginx"
+          # Код приложения уже находится в образе: на сервер копируются только compose-файл и конфиг nginx
+          scp $SSH_OPTS docker-compose.yaml "$SERVER_USER@$SERVER_HOST:~/$APP_DIR/docker-compose.yaml"
+          scp $SSH_OPTS -r nginx/. "$SERVER_USER@$SERVER_HOST:~/$APP_DIR/nginx/"
+          scp $SSH_OPTS env.prod "$SERVER_USER@$SERVER_HOST:~/$APP_DIR/.env"
+          ssh $SSH_OPTS "$SERVER_USER@$SERVER_HOST" "chmod 600 ~/$APP_DIR/.env"
+
+      - name: Pull images and restart services
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+        run: |
+          SSH_OPTS="-i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes"
+          # Токен передаётся через stdin, а не в командной строке
+          printf '%s' "$GHCR_TOKEN" | ssh $SSH_OPTS "$SERVER_USER@$SERVER_HOST" \
+            "docker login ghcr.io -u '${{ github.repository_owner }}' --password-stdin"
+          ssh $SSH_OPTS "$SERVER_USER@$SERVER_HOST" "cd ~/$APP_DIR \
+            && docker compose pull \
+            && docker compose up -d --no-build --remove-orphans --wait --wait-timeout 300 \
+            && docker image prune -f >/dev/null \
+            && docker compose ps"
+
+      - name: Smoke test
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+        run: |
+          for i in 1 2 3 4 5 6; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://$SERVER_HOST/api/schema/" || true)
+            echo "GET /api/schema/ -> $code"
+            if [ "$code" = "200" ]; then exit 0; fi
+            sleep 10
+          done
+          echo "::error::Приложение не отвечает на http://$SERVER_HOST/"
+          exit 1
+
+      - name: Cleanup secrets on runner
+        if: always()
+        run: rm -f env.prod ~/.ssh/deploy_key

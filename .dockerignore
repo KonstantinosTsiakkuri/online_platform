@@ -1,0 +1,43 @@
+# Секреты и локальные настройки (в контейнер попадают через env_file в docker-compose.yaml)
+.env
+.env.*
+!.env.template
+
+# Окружения и кэши Python
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Git и IDE
+.git
+.gitignore
+.github
+.idea
+.vscode
+
+# Служебные материалы, отчёты, данные и результаты тестов
+Claude_code
+htmlcov
+.coverage
+.coverage.*
+coverage.txt
+
+# Локальные данные (в Docker своя БД и свой volume для media)
+media
+*.sqlite3
+*.sqlite3-journal
+dump.rdb
+celerybeat-schedule*
+celerybeat.pid
+
+# Сами Docker-файлы и конфиг nginx в образ не нужны (nginx монтирует свой конфиг из репозитория)
+nginx
+staticfiles
+Dockerfile
+docker-compose*.yaml
+docker-compose*.yml
+.dockerignore

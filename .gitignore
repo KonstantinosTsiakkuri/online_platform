@@ -218,3 +218,24 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+Claude_code
+
+# --- Проект (не нужно для сдачи) ---
+# Загруженные пользователями файлы (превью курсов и уроков, аватары), MEDIA_ROOT
+media/
+# Отчёт о покрытии тестов (создаётся командой coverage report)
+coverage.txt
+# Файлы окружения с секретами: все .env.*, кроме шаблона .env.example
+.env.*
+!.env.example
+!.env.template
+# Docker: локальные переопределения и данные томов
+docker-compose.override.yaml
+docker-compose.override.yml
+pg_data/
+# Статика после collectstatic
+staticfiles/
+# Редакторы и мусор ОС
+.vscode/
+.DS_Store
+Thumbs.db
