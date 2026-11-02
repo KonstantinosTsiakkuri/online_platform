@@ -228,6 +228,7 @@ coverage.txt
 # Файлы окружения с секретами: все .env.*, кроме шаблона .env.example
 .env.*
 !.env.example
+!.env.template
 # Docker: локальные переопределения и данные томов
 docker-compose.override.yaml
 docker-compose.override.yml

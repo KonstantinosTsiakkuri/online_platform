@@ -1,7 +1,7 @@
 # Секреты и локальные настройки (в контейнер попадают через env_file в docker-compose.yaml)
 .env
 .env.*
-!.env.example
+!.env.template
 
 # Окружения и кэши Python
 .venv
@@ -15,6 +15,7 @@ __pycache__
 # Git и IDE
 .git
 .gitignore
+.github
 .idea
 .vscode
 
@@ -33,7 +34,9 @@ dump.rdb
 celerybeat-schedule*
 celerybeat.pid
 
-# Сами Docker-файлы в образ не нужны
+# Сами Docker-файлы и конфиг nginx в образ не нужны (nginx монтирует свой конфиг из репозитория)
+nginx
+staticfiles
 Dockerfile
 docker-compose*.yaml
 docker-compose*.yml

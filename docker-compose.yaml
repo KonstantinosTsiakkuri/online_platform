@@ -1,12 +1,16 @@
-# Запуск всего проекта одной командой: docker compose up -d --build
+# Запуск всего проекта: docker compose up -d --build (локально) или docker compose pull && docker compose up -d (сервер).
 #
 # Все секреты и настройки берутся из файла .env (env_file). В самом compose-файле секретов нет.
 # Здесь переопределены только адреса: внутри сети Docker сервисы находят друг друга по имени
 # (db, redis), а в .env для запуска без Docker остаются localhost.
+#
+# Наружу открыт только nginx (порт 80). app, db и redis доступны только внутри сети (expose).
 
 x-app-common: &app-common
+  # build: . — для локальной сборки; на сервере образ не собирается, а скачивается из ghcr.io
+  # (его собирает GitHub Actions, см. .github/workflows/ci-cd.yml)
   build: .
-  image: online-platform:latest
+  image: ghcr.io/konstantinostsiakkuri/online_platform:latest
   env_file: .env
   environment:
     POSTGRES_HOST: db
@@ -47,27 +51,46 @@ services:
 
   app:
     <<: *app-common
-    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"
-    ports:
-      - "8000:8000"
+    # Перед стартом: миграции и сбор статики в общий volume (его читает nginx), затем gunicorn
+    command: >
+      sh -c "python manage.py migrate --noinput
+      && python manage.py collectstatic --noinput
+      && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2"
+    expose:
+      - "8000"
     volumes:
       - media_data:/app/media
+      - static_data:/app/staticfiles
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
-      # app считается здоровым, когда миграции применены и сервер отвечает
+      # app считается здоровым, когда миграции применены и gunicorn отвечает.
+      # В заголовке Host передаётся первый адрес из ALLOWED_HOSTS, иначе Django ответил бы 400.
       test:
         - "CMD"
         - "python"
         - "-c"
-        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/schema/', timeout=5)"
+        - "import os, urllib.request as u; h = os.environ.get('ALLOWED_HOSTS', 'localhost').split(',')[0].strip(); u.urlopen(u.Request('http://127.0.0.1:8000/api/schema/', headers={'Host': h}), timeout=5)"
       interval: 10s
       timeout: 10s
       retries: 12
-      start_period: 40s
+      start_period: 60s
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_data:/app/staticfiles:ro
+      - media_data:/app/media:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
 
   celery:
     <<: *app-common
@@ -97,3 +120,4 @@ volumes:
   pg_data:
   redis_data:
   media_data:
+  static_data:
